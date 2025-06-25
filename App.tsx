@@ -18,6 +18,8 @@ export default function App() {
 
 
   return (
+    // TODO: controll opacity using prop
+    //TODO: horizontally scrolling
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Card
         cards={sampleCard}
@@ -26,9 +28,9 @@ export default function App() {
           backgroundColor: '#fff',
           borderRadius: 10,
           padding: "32%",
-          height: "70%",
-          width: "90%",
-          elevation:5
+          height: "100%",
+          width: "100%",
+          elevation: 5
         }}
       />
     </GestureHandlerRootView>
