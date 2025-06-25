@@ -4,6 +4,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withSpring,
   runOnJS,
 } from 'react-native-reanimated';
 import {
@@ -19,13 +20,14 @@ interface CardSwiperProps {
   cards: { title: string; content: string }[];
 }
 
-export default function Card({ style, cardStyle, cards }: CardSwiperProps) {
+export default function CardSwiper({ style, cardStyle, cards }: CardSwiperProps) {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
-  const changeIndex = (newIndex: number) => {
+  const changeIndex = (direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? currentIndex + 1 : currentIndex - 1;
     setCurrentIndex(newIndex);
     translateY.value = 0;
     scale.value = 1;
@@ -36,30 +38,33 @@ export default function Card({ style, cardStyle, cards }: CardSwiperProps) {
     .onUpdate((e) => {
       translateY.value = e.translationY;
 
-      const ratio = Math.min(Math.abs(e.translationY) / 300, 0.7);
-      const scaleRatio = Math.min(Math.abs(e.translationY) / 1000, 0.1);
-
-      if (e.translationY < -50 || e.translationY > 50) {
-        opacity.value = 1 - ratio;
-        scale.value = 1 - scaleRatio;
-      }
+      // Scale down and fade out slightly as user swipes
+      const progress = Math.min(Math.abs(e.translationY) / height, 1);
+      scale.value = 1 - progress * 0.1;
+      opacity.value = 1 - progress * 0.5;
     })
     .onEnd((e) => {
-      const isSwipeUp = e.translationY < -100;
-      const isSwipeDown = e.translationY > 100;
+      const isSwipeUp = e.translationY < -height * 0.2; // 20% of screen height
+      const isSwipeDown = e.translationY > height * 0.2;
+      const velocityThreshold = 800; // Fast swipe
 
-      if (isSwipeUp && currentIndex < cards.length - 1) {
-        translateY.value = withTiming(-height, {}, () => {
-          runOnJS(changeIndex)(currentIndex + 1);
+      if ((isSwipeUp || e.velocityY < -velocityThreshold) && currentIndex < cards.length - 1) {
+        // Swipe up - go to next card
+        translateY.value = withTiming(-height, { duration: 300 }, () => {
+          runOnJS(changeIndex)('up');
         });
-      } else if (isSwipeDown && currentIndex > 0) {
-        translateY.value = withTiming(height, {}, () => {
-          runOnJS(changeIndex)(currentIndex - 1);
+      } else if ((isSwipeDown || e.velocityY > velocityThreshold) && currentIndex > 0) {
+        // Swipe down - go to previous card
+        translateY.value = withTiming(height, { duration: 300 }, () => {
+          runOnJS(changeIndex)('down');
         });
       } else {
-        // Revert if not enough swipe distance
-        translateY.value = withTiming(0);
-        scale.value = withTiming(1);
+        // Return to center if not swiped enough
+        translateY.value = withSpring(0, {
+          damping: 20,
+          stiffness: 300,
+        });
+        scale.value = withSpring(1);
         opacity.value = withTiming(1);
       }
     });
@@ -72,24 +77,49 @@ export default function Card({ style, cardStyle, cards }: CardSwiperProps) {
     opacity: opacity.value,
   }));
 
-  const currentCard = cards[currentIndex];
-  const previousCard = cards[currentIndex - 1];
+  const nextCardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: 0.9 + (Math.max(translateY.value, 0) / height) * 0.1
+      },
+    ],
+    opacity: 0.7 + (Math.max(translateY.value, 0) / height) * 0.3,
+  }));
+
+  const prevCardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: 0.9 - (Math.min(translateY.value, 0) / height) * 0.1
+      },
+    ],
+    opacity: 0.7 - (Math.min(translateY.value, 0) / height) * 0.3,
+  }));
 
   return (
     <View style={[styles.container, style]}>
-      {previousCard && (
-        <Animated.View style={[styles.card, cardStyle, styles.behindCard]}>
-          <Text style={styles.title}>{previousCard.title}</Text>
-          <Text>{previousCard.content}</Text>
+      {/* Next Card (behind current) */}
+      {currentIndex < cards.length - 1 && (
+        <Animated.View style={[styles.card, cardStyle, styles.behindCard, nextCardStyle]}>
+          <Text style={styles.title}>{cards[currentIndex + 1].title}</Text>
+          <Text>{cards[currentIndex + 1].content}</Text>
         </Animated.View>
       )}
 
+      {/* Current Card (interactive) */}
       <GestureDetector gesture={gesture}>
         <Animated.View style={[styles.card, cardStyle, animatedStyle]}>
-          <Text style={styles.title}>{currentCard.title}</Text>
-          <Text>{currentCard.content}</Text>
+          <Text style={styles.title}>{cards[currentIndex].title}</Text>
+          <Text>{cards[currentIndex].content}</Text>
         </Animated.View>
       </GestureDetector>
+
+      {/* Previous Card (below if exists) */}
+      {currentIndex > 0 && (
+        <Animated.View style={[styles.card, cardStyle, styles.prevCard, prevCardStyle]}>
+          <Text style={styles.title}>{cards[currentIndex - 1].title}</Text>
+          <Text>{cards[currentIndex - 1].content}</Text>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -101,21 +131,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    height: height * 0.85,
+    height: height * 0.8,
     width: width * 0.9,
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
     elevation: 5,
     justifyContent: 'center',
+    position: 'absolute',
   },
   behindCard: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
+    top: 30,
     zIndex: -1,
     opacity: 0.7,
-    transform: [{ scale: 0.95 }],
+    transform: [{ scale: 0.9 }],
+  },
+  prevCard: {
+    top: height * 0.85,
+    zIndex: -2,
+    opacity: 0.7,
+    transform: [{ scale: 0.9 }],
   },
   title: {
     fontSize: 24,

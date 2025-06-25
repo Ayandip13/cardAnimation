@@ -21,13 +21,13 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Card
         cards={sampleCard}
-        style={{ backgroundColor: '#98A1BC' }}
+        style={{ backgroundColor: '#98A1BC', }}
         cardStyle={{
           backgroundColor: '#fff',
           borderRadius: 10,
-          padding: 30,
+          padding: "32%",
           height: "70%",
-          width: "80%",
+          width: "90%",
           elevation:5
         }}
       />
