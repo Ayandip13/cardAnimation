@@ -25,7 +25,7 @@ export default function Card() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const translateY = useSharedValue(0);
 
-  const changeIndex = (newIndex) => {
+  const changeIndex = (newIndex:number) => {
     setCurrentIndex(newIndex);
     translateY.value = 0;
   };
