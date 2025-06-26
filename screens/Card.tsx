@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,7 +6,7 @@ import {
   ViewStyle,
   Text,
   Image,
-  ImageProps,
+  ImageSourcePropType,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -17,13 +17,14 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import FastImage from 'react-native-fast-image';
 
 const { height, width } = Dimensions.get('window');
 
 export interface CardItem {
   title: string;
   content: string;
-  image: ImageProps;
+  image: ImageSourcePropType | { uri: string }; // More specific type
 }
 
 interface CardSwiperProps {
@@ -35,7 +36,7 @@ interface CardSwiperProps {
   onSwipe?: (direction: 'up' | 'down', index: number) => void;
 }
 
-export default function CardSwiper({
+export default function Card({
   style,
   cardStyle,
   cards,
@@ -51,6 +52,21 @@ export default function CardSwiper({
   const nextCardOpacity = useSharedValue(0);
   const prevCardScale = useSharedValue(0.92);
   const prevCardOpacity = useSharedValue(0);
+
+  // Preload images when component mounts
+  useEffect(() => {
+    cards.forEach(card => {
+      if (typeof card.image === 'number') {
+        Image.prefetch(Image.resolveAssetSource(card.image).uri);
+      }
+    });
+    return () => {
+      // Reset all shared values
+      translateY.value = 0;
+      scale.value = 1;
+      // ...other cleanups
+    };
+  }, [cards]);
 
   const changeIndex = (direction: 'up' | 'down') => {
     setTimeout(() => {
@@ -129,6 +145,8 @@ export default function CardSwiper({
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
     opacity: opacity.value,
     zIndex: 10,
+    useHardwareTextureAndroid: true,
+    shouldRasterizeIOS: true,
   }));
 
   const nextCardStyle = useAnimatedStyle(() => ({
@@ -138,6 +156,8 @@ export default function CardSwiper({
     ],
     opacity: nextCardOpacity.value,
     zIndex: 5,
+    useHardwareTextureAndroid: true,
+    shouldRasterizeIOS: true,
   }));
 
   const prevCardStyle = useAnimatedStyle(() => ({
@@ -147,15 +167,17 @@ export default function CardSwiper({
     ],
     opacity: prevCardOpacity.value,
     zIndex: 1,
+    useHardwareTextureAndroid: true,
+    shouldRasterizeIOS: true,
   }));
 
   const renderDefault = (item: CardItem, index: number) => (
     <View style={styles.defaultCardContent}>
-      <Image
+      <FastImage
         source={item.image}
         style={{ width: '100%', height: 200, borderRadius: 10 }}
-        resizeMode="cover"
-        fadeDuration={0} // 💡 Prevents flicker
+        resizeMode={FastImage.resizeMode.cover}
+        fallback={true}
       />
       <Text style={styles.title}>{item.title}</Text>
       <Text>{item.content}</Text>

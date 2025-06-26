@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Card from './screens/Card';
-import { Image, Text, View } from 'react-native';
+import { Alert, Image, Text, View } from 'react-native';
 
 export default function App() {
   const sampleCard = [
@@ -45,6 +45,7 @@ export default function App() {
           width: '100%',
           elevation: 9,
         }}
+        loop={false}
       />
     </GestureHandlerRootView>
   );
