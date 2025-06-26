@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import Card from './screens/Card'; 
+import Card from './screens/Card';
 import { Image, Text, View } from 'react-native';
 
 export default function App() {
@@ -19,7 +19,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Card
         cards={sampleCard}
-        loop={true}
+        // loop={true}
         onSwipe={(dir, idx) => console.log(`Swiped ${dir} to index ${idx}`)}
         renderCard={(item, index) => (
           <View style={{ alignItems: 'center' }}>
@@ -36,14 +36,14 @@ export default function App() {
             <Text style={{ marginTop: 10 }}>{item.content}</Text>
           </View>
         )}
-        style={{ backgroundColor: '#98A1BC' }}
+        style={{ backgroundColor: '#C4E1E6' }}
         cardStyle={{
-          backgroundColor: '#fff',
+          backgroundColor: '#A4CCD9',
           borderRadius: 10,
           padding: 32,
-          height: '80%',
+          height: '70%',
           width: '100%',
-          elevation: 5,
+          elevation: 9,
         }}
       />
     </GestureHandlerRootView>

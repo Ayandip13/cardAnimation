@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions, ViewStyle, Text, ImageProps } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  ViewStyle,
+  Text,
+  Image,
+  ImageProps,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
   runOnJS,
+  interpolate,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
@@ -14,7 +23,7 @@ const { height, width } = Dimensions.get('window');
 export interface CardItem {
   title: string;
   content: string;
-  image:ImageProps
+  image: ImageProps;
 }
 
 interface CardSwiperProps {
@@ -44,24 +53,21 @@ export default function CardSwiper({
   const prevCardOpacity = useSharedValue(0);
 
   const changeIndex = (direction: 'up' | 'down') => {
-    let newIndex = direction === 'up' ? currentIndex + 1 : currentIndex - 1;
-
-    if (loop) {
-      newIndex = (newIndex + cards.length) % cards.length;
-    }
-
-    if (newIndex >= 0 && newIndex < cards.length) {
-      onSwipe?.(direction, newIndex);
-      setCurrentIndex(newIndex);
-    }
-
-    translateY.value = 0;
-    scale.value = 1;
-    opacity.value = 1;
-    nextCardScale.value = 0.92;
-    nextCardOpacity.value = 0;
-    prevCardScale.value = 0.92;
-    prevCardOpacity.value = 0;
+    setTimeout(() => {
+      let newIndex = direction === 'up' ? currentIndex + 1 : currentIndex - 1;
+      if (loop) newIndex = (newIndex + cards.length) % cards.length;
+      if (newIndex >= 0 && newIndex < cards.length) {
+        onSwipe?.(direction, newIndex);
+        setCurrentIndex(newIndex);
+      }
+      translateY.value = 0;
+      scale.value = 1;
+      opacity.value = 1;
+      nextCardScale.value = 0.92;
+      nextCardOpacity.value = 0;
+      prevCardScale.value = 0.92;
+      prevCardOpacity.value = 0;
+    }, 100);
   };
 
   const gesture = Gesture.Pan()
@@ -94,9 +100,9 @@ export default function CardSwiper({
         scale.value = withTiming(0.8, { duration: 300 });
         opacity.value = withTiming(0, { duration: 300 });
         nextCardScale.value = withTiming(1, { duration: 300 });
-        nextCardOpacity.value = withTiming(0.7, { duration: 300 }, () => {
-          runOnJS(changeIndex)('up');
-        });
+        nextCardOpacity.value = withTiming(0.7, { duration: 300 }, () =>
+          runOnJS(changeIndex)('up'),
+        );
       } else if (
         (isSwipeDown || e.velocityY > velocityThreshold) &&
         (loop || currentIndex > 0)
@@ -105,9 +111,9 @@ export default function CardSwiper({
         scale.value = withTiming(0.8, { duration: 300 });
         opacity.value = withTiming(0, { duration: 300 });
         prevCardScale.value = withTiming(1, { duration: 300 });
-        prevCardOpacity.value = withTiming(0.7, { duration: 300 }, () => {
-          runOnJS(changeIndex)('down');
-        });
+        prevCardOpacity.value = withTiming(0.7, { duration: 300 }, () =>
+          runOnJS(changeIndex)('down'),
+        );
       } else {
         translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
         scale.value = withSpring(1);
@@ -126,42 +132,55 @@ export default function CardSwiper({
   }));
 
   const nextCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: nextCardScale.value }, { translateY: 30 }],
+    transform: [
+      { scale: nextCardScale.value },
+      { translateY: interpolate(nextCardOpacity.value, [0, 0.7], [60, 0]) },
+    ],
     opacity: nextCardOpacity.value,
     zIndex: 5,
   }));
 
   const prevCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: prevCardScale.value }, { translateY: 30 }],
+    transform: [
+      { scale: prevCardScale.value },
+      { translateY: interpolate(prevCardOpacity.value, [0, 0.7], [-60, 0]) },
+    ],
     opacity: prevCardOpacity.value,
     zIndex: 1,
   }));
 
   const renderDefault = (item: CardItem, index: number) => (
     <View style={styles.defaultCardContent}>
+      <Image
+        source={item.image}
+        style={{ width: '100%', height: 200, borderRadius: 10 }}
+        resizeMode="cover"
+        fadeDuration={0} // 💡 Prevents flicker
+      />
       <Text style={styles.title}>{item.title}</Text>
       <Text>{item.content}</Text>
     </View>
   );
 
+  const getKey = (prefix: string, index: number) =>
+    `${prefix}-${cards[index % cards.length]?.title || index}`;
+
   return (
     <View style={[styles.container, style]}>
       {currentIndex < cards.length - 1 && translateY.value >= 0 && (
-        <Animated.View style={[styles.card, cardStyle, nextCardStyle]}>
+        <Animated.View
+          key={getKey('next', currentIndex + 1)}
+          style={[styles.card, cardStyle, nextCardStyle]}>
           {renderCard
-            ? renderCard(
-              cards[(currentIndex + 1) % cards.length],
-              currentIndex + 1,
-            )
-            : renderDefault(
-              cards[(currentIndex + 1) % cards.length],
-              currentIndex + 1,
-            )}
+            ? renderCard(cards[(currentIndex + 1) % cards.length], currentIndex + 1)
+            : renderDefault(cards[(currentIndex + 1) % cards.length], currentIndex + 1)}
         </Animated.View>
       )}
 
       <GestureDetector gesture={gesture}>
-        <Animated.View style={[styles.card, cardStyle, animatedStyle]}>
+        <Animated.View
+          key={getKey('current', currentIndex)}
+          style={[styles.card, cardStyle, animatedStyle]}>
           {renderCard
             ? renderCard(cards[currentIndex], currentIndex)
             : renderDefault(cards[currentIndex], currentIndex)}
@@ -169,16 +188,12 @@ export default function CardSwiper({
       </GestureDetector>
 
       {currentIndex > 0 && translateY.value <= 0 && (
-        <Animated.View style={[styles.card, cardStyle, prevCardStyle]}>
+        <Animated.View
+          key={getKey('prev', currentIndex - 1)}
+          style={[styles.card, cardStyle, prevCardStyle]}>
           {renderCard
-            ? renderCard(
-              cards[(currentIndex - 1 + cards.length) % cards.length],
-              currentIndex - 1,
-            )
-            : renderDefault(
-              cards[(currentIndex - 1 + cards.length) % cards.length],
-              currentIndex - 1,
-            )}
+            ? renderCard(cards[(currentIndex - 1 + cards.length) % cards.length], currentIndex - 1)
+            : renderDefault(cards[(currentIndex - 1 + cards.length) % cards.length], currentIndex - 1)}
         </Animated.View>
       )}
     </View>
@@ -212,7 +227,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginTop: 15,
+    marginBottom: 8,
     color: '#333',
   },
 });
