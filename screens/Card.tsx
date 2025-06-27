@@ -35,6 +35,8 @@ interface CardSwiperProps {
   loop?: boolean;
   horizontal?: boolean;
   onSwipe?: (direction: 'up' | 'down' | 'left' | 'right', index: number) => void;
+  onReachEnd?: () => void; // Callback when trying to swipe beyond last card
+  onReachStart?: () => void; // Callback when trying to swipe before first card
 }
 
 export default function Card({
@@ -45,6 +47,8 @@ export default function Card({
   loop = false,
   horizontal = false,
   onSwipe,
+  onReachEnd,
+  onReachStart,
 }: CardSwiperProps) {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const translateY = useSharedValue(0);
@@ -78,7 +82,20 @@ export default function Card({
         newIndex = currentIndex - 1;
       }
 
-      if (loop) newIndex = (newIndex + cards.length) % cards.length;
+      if (loop) {
+        newIndex = (newIndex + cards.length) % cards.length;
+      } else {
+        // Check if we're at boundaries and call appropriate callbacks
+        if (newIndex < 0) {
+          onReachStart?.();
+          return;
+        }
+        if (newIndex >= cards.length) {
+          onReachEnd?.();
+          return;
+        }
+      }
+
       if (newIndex >= 0 && newIndex < cards.length) {
         onSwipe?.(direction, newIndex);
         setCurrentIndex(newIndex);
@@ -135,14 +152,22 @@ export default function Card({
       let direction: 'up' | 'down' | 'left' | 'right' | null = null;
       let shouldSwipe = false;
 
-      if ((translation < -threshold || velocity < -velocityThreshold) &&
-        (loop || currentIndex < cards.length - 1)) {
-        shouldSwipe = true;
+      if (translation < -threshold || velocity < -velocityThreshold) {
         direction = horizontal ? 'left' : 'up';
-      } else if ((translation > threshold || velocity > velocityThreshold) &&
-        (loop || currentIndex > 0)) {
-        shouldSwipe = true;
+        shouldSwipe = loop || currentIndex < cards.length - 1;
+
+        // Check if we're at the end and should call onReachEnd
+        if (!loop && currentIndex >= cards.length - 1) {
+          runOnJS(onReachEnd)();
+        }
+      } else if (translation > threshold || velocity > velocityThreshold) {
         direction = horizontal ? 'right' : 'down';
+        shouldSwipe = loop || currentIndex > 0;
+
+        // Check if we're at the start and should call onReachStart
+        if (!loop && currentIndex <= 0) {
+          runOnJS(onReachStart)();
+        }
       }
 
       if (shouldSwipe && direction) {
@@ -187,6 +212,7 @@ export default function Card({
       }
     });
 
+  // ... rest of the component remains the same ...
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: horizontal ? 0 : translateY.value },

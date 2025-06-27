@@ -43,8 +43,10 @@ export default function App() {
           width: '70%',
           elevation: 0,
         }}
-        loop={true}
+        loop={false}
         horizontal={true}
+        onReachEnd={()=>Alert.alert('end')}
+        onReachStart={()=>Alert.alert('start')}
       />
     </GestureHandlerRootView>
   );
