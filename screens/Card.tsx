@@ -105,7 +105,7 @@ export default function Card({
     })
     .onEnd(e => {
       const isSwipeUp = e.translationY < -height * 0.15;
-      const isSwipeDown = e.translationY > height * 0.15;
+      const isSwipeDown = e.translationY < -height * 0.15;
       const velocityThreshold = 600;
 
       if (
@@ -113,7 +113,7 @@ export default function Card({
         (loop || currentIndex < cards.length - 1)
       ) {
         translateY.value = withTiming(-height, { duration: 300 });
-        scale.value = withTiming(0.8, { duration: 300 });
+        scale.value = withTiming(0, { duration: 300 });
         opacity.value = withTiming(0, { duration: 300 });
         nextCardScale.value = withTiming(1, { duration: 300 });
         nextCardOpacity.value = withTiming(0.7, { duration: 300 }, () =>

@@ -19,7 +19,6 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Card
         cards={sampleCard}
-        // loop={true}
         onSwipe={(dir, idx) => console.log(`Swiped ${dir} to index ${idx}`)}
         renderCard={(item, index) => (
           <View style={{ alignItems: 'center' }}>
@@ -29,7 +28,6 @@ export default function App() {
                 style={{ width: 200, height: 180, resizeMode: 'cover', borderRadius: 10, marginBottom: 10 }}
               />
             )}
-
             <Text style={{ fontSize: 24 }}>
               {index + 1}. {item.title}
             </Text>
@@ -39,10 +37,10 @@ export default function App() {
         style={{ backgroundColor: '#C4E1E6' }}
         cardStyle={{
           backgroundColor: '#A4CCD9',
-          borderRadius: 10,
+          borderRadius: 1,
           padding: 32,
-          height: '70%',
-          width: '100%',
+          height: '60%',
+          width: '70%',
           elevation: 9,
         }}
         loop={false}
