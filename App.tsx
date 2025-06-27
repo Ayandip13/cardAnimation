@@ -34,16 +34,17 @@ export default function App() {
             <Text style={{ marginTop: 10 }}>{item.content}</Text>
           </View>
         )}
-        style={{ backgroundColor: '#C4E1E6' }}
+        style={{ backgroundColor: '#fff' }}
         cardStyle={{
           backgroundColor: '#A4CCD9',
-          borderRadius: 1,
+          borderRadius: 20,
           padding: 32,
           height: '60%',
           width: '70%',
-          elevation: 9,
+          elevation: 0,
         }}
-        loop={false}
+        loop={true}
+        horizontal={true}
       />
     </GestureHandlerRootView>
   );

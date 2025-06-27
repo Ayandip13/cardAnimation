@@ -24,7 +24,7 @@ const { height, width } = Dimensions.get('window');
 export interface CardItem {
   title: string;
   content: string;
-  image: ImageSourcePropType | { uri: string }; // More specific type
+  image: ImageSourcePropType | { uri: string };
 }
 
 interface CardSwiperProps {
@@ -33,7 +33,8 @@ interface CardSwiperProps {
   cards: CardItem[];
   renderCard?: (item: CardItem, index: number) => React.ReactNode;
   loop?: boolean;
-  onSwipe?: (direction: 'up' | 'down', index: number) => void;
+  horizontal?: boolean;
+  onSwipe?: (direction: 'up' | 'down' | 'left' | 'right', index: number) => void;
 }
 
 export default function Card({
@@ -42,10 +43,12 @@ export default function Card({
   cards,
   renderCard,
   loop = false,
+  horizontal = false,
   onSwipe,
 }: CardSwiperProps) {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const nextCardScale = useSharedValue(0.92);
@@ -53,7 +56,6 @@ export default function Card({
   const prevCardScale = useSharedValue(0.92);
   const prevCardOpacity = useSharedValue(0);
 
-  // Preload images when component mounts
   useEffect(() => {
     cards.forEach(card => {
       if (typeof card.image === 'number') {
@@ -61,22 +63,29 @@ export default function Card({
       }
     });
     return () => {
-      // Reset all shared values
       translateY.value = 0;
+      translateX.value = 0;
       scale.value = 1;
-      // ...other cleanups
     };
   }, [cards]);
 
-  const changeIndex = (direction: 'up' | 'down') => {
+  const changeIndex = (direction: 'up' | 'down' | 'left' | 'right') => {
     setTimeout(() => {
-      let newIndex = direction === 'up' ? currentIndex + 1 : currentIndex - 1;
+      let newIndex = currentIndex;
+      if (direction === 'up' || direction === 'left') {
+        newIndex = currentIndex + 1;
+      } else if (direction === 'down' || direction === 'right') {
+        newIndex = currentIndex - 1;
+      }
+
       if (loop) newIndex = (newIndex + cards.length) % cards.length;
       if (newIndex >= 0 && newIndex < cards.length) {
         onSwipe?.(direction, newIndex);
         setCurrentIndex(newIndex);
       }
+
       translateY.value = 0;
+      translateX.value = 0;
       scale.value = 1;
       opacity.value = 1;
       nextCardScale.value = 0.92;
@@ -88,50 +97,87 @@ export default function Card({
 
   const gesture = Gesture.Pan()
     .onUpdate(e => {
-      translateY.value = e.translationY;
-      const progress = Math.min(Math.abs(e.translationY) / height, 1);
+      if (horizontal) {
+        translateX.value = e.translationX;
+      } else {
+        translateY.value = e.translationY;
+      }
+
+      const progress = Math.min(
+        Math.abs(horizontal ? e.translationX : e.translationY) / (horizontal ? width : height),
+        1
+      );
       scale.value = 1 - progress * 0.1;
       opacity.value = 1 - progress * 0.8;
 
-      if (e.translationY < 0 && (loop || currentIndex < cards.length - 1)) {
+      if (
+        ((horizontal && e.translationX < 0) || (!horizontal && e.translationY < 0)) &&
+        (loop || currentIndex < cards.length - 1)
+      ) {
         const nextProgress = progress;
         nextCardScale.value = 0.92 + nextProgress * 0.08;
         nextCardOpacity.value = nextProgress * 0.7;
-      } else if (e.translationY > 0 && (loop || currentIndex > 0)) {
+      } else if (
+        ((horizontal && e.translationX > 0) || (!horizontal && e.translationY > 0)) &&
+        (loop || currentIndex > 0)
+      ) {
         const prevProgress = progress;
         prevCardScale.value = 0.92 + prevProgress * 0.08;
         prevCardOpacity.value = prevProgress * 0.7;
       }
     })
     .onEnd(e => {
-      const isSwipeUp = e.translationY < -height * 0.15;
-      const isSwipeDown = e.translationY < -height * 0.15;
+      const threshold = horizontal ? width * 0.15 : height * 0.15;
       const velocityThreshold = 600;
+      const velocity = horizontal ? e.velocityX : e.velocityY;
+      const translation = horizontal ? e.translationX : e.translationY;
 
-      if (
-        (isSwipeUp || e.velocityY < -velocityThreshold) &&
-        (loop || currentIndex < cards.length - 1)
-      ) {
-        translateY.value = withTiming(-height, { duration: 300 });
+      let direction: 'up' | 'down' | 'left' | 'right' | null = null;
+      let shouldSwipe = false;
+
+      if ((translation < -threshold || velocity < -velocityThreshold) &&
+        (loop || currentIndex < cards.length - 1)) {
+        shouldSwipe = true;
+        direction = horizontal ? 'left' : 'up';
+      } else if ((translation > threshold || velocity > velocityThreshold) &&
+        (loop || currentIndex > 0)) {
+        shouldSwipe = true;
+        direction = horizontal ? 'right' : 'down';
+      }
+
+      if (shouldSwipe && direction) {
+        if (horizontal) {
+          translateX.value = withTiming(
+            direction === 'left' ? -width : width,
+            { duration: 300 }
+          );
+        } else {
+          translateY.value = withTiming(
+            direction === 'up' ? -height : height,
+            { duration: 300 }
+          );
+        }
+
         scale.value = withTiming(0, { duration: 300 });
         opacity.value = withTiming(0, { duration: 300 });
-        nextCardScale.value = withTiming(1, { duration: 300 });
-        nextCardOpacity.value = withTiming(0.7, { duration: 300 }, () =>
-          runOnJS(changeIndex)('up'),
-        );
-      } else if (
-        (isSwipeDown || e.velocityY > velocityThreshold) &&
-        (loop || currentIndex > 0)
-      ) {
-        translateY.value = withTiming(height, { duration: 300 });
-        scale.value = withTiming(0.8, { duration: 300 });
-        opacity.value = withTiming(0, { duration: 300 });
-        prevCardScale.value = withTiming(1, { duration: 300 });
-        prevCardOpacity.value = withTiming(0.7, { duration: 300 }, () =>
-          runOnJS(changeIndex)('down'),
-        );
+
+        if (direction === 'left' || direction === 'up') {
+          nextCardScale.value = withTiming(1, { duration: 300 });
+          nextCardOpacity.value = withTiming(0.7, { duration: 300 }, () =>
+            runOnJS(changeIndex)(direction!)
+          );
+        } else {
+          prevCardScale.value = withTiming(1, { duration: 300 });
+          prevCardOpacity.value = withTiming(0.7, { duration: 300 }, () =>
+            runOnJS(changeIndex)(direction!)
+          );
+        }
       } else {
-        translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
+        if (horizontal) {
+          translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
+        } else {
+          translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
+        }
         scale.value = withSpring(1);
         opacity.value = withTiming(1);
         nextCardScale.value = withTiming(0.92);
@@ -142,7 +188,11 @@ export default function Card({
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }, { scale: scale.value }],
+    transform: [
+      { translateY: horizontal ? 0 : translateY.value },
+      { translateX: horizontal ? translateX.value : 0 },
+      { scale: scale.value },
+    ],
     opacity: opacity.value,
     zIndex: 10,
     useHardwareTextureAndroid: true,
@@ -152,7 +202,12 @@ export default function Card({
   const nextCardStyle = useAnimatedStyle(() => ({
     transform: [
       { scale: nextCardScale.value },
-      { translateY: interpolate(nextCardOpacity.value, [0, 0.7], [60, 0]) },
+      {
+        translateY: horizontal ? 0 : interpolate(nextCardOpacity.value, [0, 0.7], [60, 0])
+      },
+      {
+        translateX: horizontal ? interpolate(nextCardOpacity.value, [0, 0.7], [60, 0]) : 0
+      },
     ],
     opacity: nextCardOpacity.value,
     zIndex: 5,
@@ -163,7 +218,12 @@ export default function Card({
   const prevCardStyle = useAnimatedStyle(() => ({
     transform: [
       { scale: prevCardScale.value },
-      { translateY: interpolate(prevCardOpacity.value, [0, 0.7], [-60, 0]) },
+      {
+        translateY: horizontal ? 0 : interpolate(prevCardOpacity.value, [0, 0.7], [-60, 0])
+      },
+      {
+        translateX: horizontal ? interpolate(prevCardOpacity.value, [0, 0.7], [-60, 0]) : 0
+      },
     ],
     opacity: prevCardOpacity.value,
     zIndex: 1,
@@ -189,15 +249,16 @@ export default function Card({
 
   return (
     <View style={[styles.container, style]}>
-      {currentIndex < cards.length - 1 && translateY.value >= 0 && (
-        <Animated.View
-          key={getKey('next', currentIndex + 1)}
-          style={[styles.card, cardStyle, nextCardStyle]}>
-          {renderCard
-            ? renderCard(cards[(currentIndex + 1) % cards.length], currentIndex + 1)
-            : renderDefault(cards[(currentIndex + 1) % cards.length], currentIndex + 1)}
-        </Animated.View>
-      )}
+      {currentIndex < cards.length - 1 &&
+        ((horizontal && translateX.value >= 0) || (!horizontal && translateY.value >= 0)) && (
+          <Animated.View
+            key={getKey('next', currentIndex + 1)}
+            style={[styles.card, cardStyle, nextCardStyle]}>
+            {renderCard
+              ? renderCard(cards[(currentIndex + 1) % cards.length], currentIndex + 1)
+              : renderDefault(cards[(currentIndex + 1) % cards.length], currentIndex + 1)}
+          </Animated.View>
+        )}
 
       <GestureDetector gesture={gesture}>
         <Animated.View
@@ -209,15 +270,16 @@ export default function Card({
         </Animated.View>
       </GestureDetector>
 
-      {currentIndex > 0 && translateY.value <= 0 && (
-        <Animated.View
-          key={getKey('prev', currentIndex - 1)}
-          style={[styles.card, cardStyle, prevCardStyle]}>
-          {renderCard
-            ? renderCard(cards[(currentIndex - 1 + cards.length) % cards.length], currentIndex - 1)
-            : renderDefault(cards[(currentIndex - 1 + cards.length) % cards.length], currentIndex - 1)}
-        </Animated.View>
-      )}
+      {currentIndex > 0 &&
+        ((horizontal && translateX.value <= 0) || (!horizontal && translateY.value <= 0)) && (
+          <Animated.View
+            key={getKey('prev', currentIndex - 1)}
+            style={[styles.card, cardStyle, prevCardStyle]}>
+            {renderCard
+              ? renderCard(cards[(currentIndex - 1 + cards.length) % cards.length], currentIndex - 1)
+              : renderDefault(cards[(currentIndex - 1 + cards.length) % cards.length], currentIndex - 1)}
+          </Animated.View>
+        )}
     </View>
   );
 }
