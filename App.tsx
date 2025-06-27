@@ -36,15 +36,15 @@ export default function App() {
         )}
         style={{ backgroundColor: '#fff' }}
         cardStyle={{
-          backgroundColor: '#A4CCD9',
+          backgroundColor: '#fff',
           borderRadius: 20,
           padding: 32,
           height: '60%',
-          width: '70%',
-          elevation: 0,
+          width: '95%',
+          elevation: 10,
         }}
         loop={false}
-        horizontal={true}
+        horizontal={false}
         onReachEnd={()=>Alert.alert('end')}
         onReachStart={()=>Alert.alert('start')}
       />

@@ -121,9 +121,7 @@ export default function Card({
       }
 
       const progress = Math.min(
-        Math.abs(horizontal ? e.translationX : e.translationY) / (horizontal ? width : height),
-        1
-      );
+        Math.abs(horizontal ? e.translationX : e.translationY) / (horizontal ? width : height),1);
       scale.value = 1 - progress * 0.1;
       opacity.value = 1 - progress * 0.8;
 
