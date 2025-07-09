@@ -25,7 +25,13 @@ export default function App() {
             {item.image && (
               <Image
                 source={item.image}
-                style={{ width: 200, height: 180, resizeMode: 'cover', borderRadius: 10, marginBottom: 10 }}
+                style={{
+                  width: 200,
+                  height: 180,
+                  resizeMode: 'cover',
+                  borderRadius: 10,
+                  marginBottom: 10
+                }}
               />
             )}
             <Text style={{ fontSize: 24 }}>
@@ -39,14 +45,14 @@ export default function App() {
           backgroundColor: '#fff',
           borderRadius: 20,
           padding: 32,
-          height: '60%',
+          height: '50%',
           width: '95%',
           elevation: 10,
         }}
-        loop={false}
+        loop={true}
         horizontal={false}
-        onReachEnd={()=>Alert.alert('end')}
-        onReachStart={()=>Alert.alert('start')}
+        // onReachEnd={() => Alert.alert('end')}
+        // onReachStart={() => Alert.alert('start')}
       />
     </GestureHandlerRootView>
   );
